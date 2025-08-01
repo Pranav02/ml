@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>API Demo</title>
+</head>
+<body>
+  <img id="image-preview" src="https://raw.githubusercontent.com/gradio-app/gradio/main/test/test_files/bus.png" alt="Input image" width="224"/>
+
+  <button id="run-button">Run Predict</button>
+
+  <div id="result">Result will appear here</div>
+
+  <script>
+    async function callHfSpace(imageUrl) {
+      const endpoint = "https://prnvjndl-ml-learn.hf.space/gradio_api/call/predict";
+      const payload = {
+        "data": [
+          { "path": imageUrl, "meta": { "_type": "gradio.FileData" } }
+        ]
+      };
+
+      // Step 1: Send initial predict request
+      const res1 = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res1.ok) {
+        const err = await res1.text();
+        throw new Error('Error step 1: ' + err);
+      }
+
+      const text1 = await res1.text();
+      const match = text1.match(/"([^"]+)"/);
+      if (!match) throw new Error("Invalid response for event_id");
+      const eventId = match[1];
+
+      // Step 2: Poll for result
+      const res2 = await fetch(`${endpoint}/${eventId}`, {
+        method: 'GET'
+      });
+
+      if (!res2.ok) {
+        const err = await res2.text();
+        throw new Error('Error step 2: ' + err);
+      }
+
+      const json2 = await res2.json();
+      return json2;
+    }
+
+    document.getElementById('run-button').addEventListener('click', async () => {
+      const resultDiv = document.getElementById('result');
+      resultDiv.textContent = "⏳ Running model…";
+
+      const imgEl = document.getElementById('image-preview');
+      const imgUrl = imgEl.src;
+
+      try {
+        const out = await callHfSpace(imgUrl);
+        resultDiv.textContent = "✅ Output: " + JSON.stringify(out);
+      } catch (e) {
+        resultDiv.textContent = "❌ Error: " + e.message;
+      }
+    });
+  </script>
+</body>
+</html>
